@@ -20,7 +20,7 @@ public class JwtServiceImpl implements JwtService {
     @Override
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", userDetails.getAuthorities().stream().map(Object::toString).findFirst());
+        claims.put("role", userDetails.getAuthorities().stream().map(Object::toString).findFirst().orElse(null));
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(userDetails.getUsername())
