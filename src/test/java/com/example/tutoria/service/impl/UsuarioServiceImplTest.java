@@ -7,6 +7,7 @@ import com.example.tutoria.repository.UsuarioRepository;
 import com.example.tutoria.request.UsuarioRequest;
 import com.example.tutoria.response.UsuarioResponse;
 import com.example.tutoria.service.JwtService;
+import com.example.tutoria.service.RedisService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -28,6 +29,7 @@ class UsuarioServiceImplTest {
     AuthenticationManager authenticationManager;
     JwtService jwtService;
     UserDetailsServiceImpl userDetailsService;
+    RedisService redisService;
 
     @InjectMocks
     UsuarioServiceImpl usuarioService;
@@ -38,7 +40,8 @@ class UsuarioServiceImplTest {
                 authenticationManager,
                 jwtService,
                 userDetailsService,
-                roleRepository);
+                roleRepository,
+                redisService);
     }
 
     @Test

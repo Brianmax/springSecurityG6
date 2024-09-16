@@ -8,7 +8,10 @@ import com.example.tutoria.request.LoginRequest;
 import com.example.tutoria.request.UsuarioRequest;
 import com.example.tutoria.response.UsuarioResponse;
 import com.example.tutoria.service.JwtService;
+import com.example.tutoria.service.RedisService;
 import com.example.tutoria.service.UsuarioService;
+import com.example.tutoria.utils.Utils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -16,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -25,13 +29,17 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
     private final RoleRepository roleRepository;
+    private final RedisService redisService;
+    @Value("${redis.time.value}")
+    private int valueRedisTime;
 
-    public UsuarioServiceImpl(UsuarioRepository usuarioRepository, AuthenticationManager authenticationManager, JwtService jwtService, UserDetailsServiceImpl userDetailsService, RoleRepository roleRepository) {
+    public UsuarioServiceImpl(UsuarioRepository usuarioRepository, AuthenticationManager authenticationManager, JwtService jwtService, UserDetailsServiceImpl userDetailsService, RoleRepository roleRepository, RedisService redisService) {
         this.usuarioRepository = usuarioRepository;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
         this.roleRepository = roleRepository;
+        this.redisService = redisService;
     }
 
     @Override
@@ -60,5 +68,40 @@ public class UsuarioServiceImpl implements UsuarioService {
             return jwtService.generateToken(userDetails);
         }
         return null;
+    }
+
+    @Override
+    public List<Usuario> findAll() {
+        String redisInfo = redisService.getValueByKey("*");
+        if (redisInfo == null) {
+            List<Usuario> usuarios = usuarioRepository.findAll();
+            if (!usuarios.isEmpty()) {
+                String json = Utils.convertToJson(usuarios);
+                redisService.saveKeyValue("*", json, valueRedisTime);
+            }
+        }
+        List<Usuario> usuarios = Utils.convertFromJson(redisInfo, List.class);
+        return usuarios;
+    }
+
+    @Override
+    public UsuarioResponse findByEmail(String email) {
+        String valueRedis = redisService.getValueByKey(email);
+
+        if (valueRedis == null) {
+            Optional<Usuario> usuarioOptional = usuarioRepository.findByEmail(email);
+
+            if (usuarioOptional.isPresent()) {
+                Usuario usuario = usuarioOptional.get();
+                UsuarioResponse usuarioResponse = new UsuarioResponse(usuario.getEmail(),
+                        usuario.getRole().getNameRole());
+                String json = Utils.convertToJson(usuarioResponse);
+                redisService.saveKeyValue(email, json, valueRedisTime);
+                return usuarioResponse;
+            }
+        }
+
+        UsuarioResponse usuarioResponse = Utils.convertFromJson(valueRedis, UsuarioResponse.class);
+        return usuarioResponse;
     }
 }
